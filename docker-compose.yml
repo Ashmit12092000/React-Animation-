@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+
+  # ── SD-Turbo FastAPI image generation service ──────────────────────────────
+  sd-api:
+    build:
+      context: ./sd-api
+      dockerfile: Dockerfile
+    container_name: opendoodler-sd-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - sd_model_cache:/app/hf_cache
+    environment:
+      - HF_HOME=/app/hf_cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  # ── React CRA dev server ───────────────────────────────────────────────────
+  react-app:
+    build:
+      context: ./react-app
+      dockerfile: Dockerfile
+    container_name: opendoodler-react
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_IMG_API=${REACT_APP_IMG_API:-http://localhost:8000}
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_HOST=0.0.0.0
+      - WDS_SOCKET_PORT=3000
+    volumes:
+      - ./react-app/src:/app/src
+      - ./react-app/public:/app/public
+      - /app/node_modules
+    depends_on:
+      sd-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  sd_model_cache:
