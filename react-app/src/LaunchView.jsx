@@ -32,7 +32,7 @@ export default function LaunchView() {
           Whiteboard Animation
         </h1>
         <p style={{ color: '#64748b', marginTop: 8, fontSize: isMobile ? 14 : 17 }}>
-          whiteboard animation editor
+          whiteboard animation editor 
         </p>
       </div>
 

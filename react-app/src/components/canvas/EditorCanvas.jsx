@@ -47,23 +47,50 @@ export default function EditorCanvas({ playing = false }) {
   }, []);
 
   const handleCanvasClick = (e) => {
-    // Only deselect if the click landed directly on the canvas background,
-    // not on a child graphic item. e.target === e.currentTarget means the
-    // click was on the canvas div itself, not bubbled up from a child.
-    if (e.target === e.currentTarget) {
+    // Deselect when clicking the canvas background, not a child graphic.
+    // We check both the inner and outer divs (canvasRef target) as valid
+    // "background" clicks — any click that wasn't on a GraphicItem counts.
+    const target = e.target;
+    if (target === e.currentTarget || target === canvasRef.current) {
       selectGraphic(null);
     }
   };
 
+  // Animation travel distance – must match the translateX/Y values in
+  // KEYFRAMES_CSS (currently 60px).  We expand the clipping region by this
+  // amount on every side so slide-in objects are visible while they travel
+  // from outside the canvas boundary, then clip back to the canvas edge.
+  const ANIM_BLEED = playing ? 80 : 0;
+
   return (
+    // Outer div: clips to the canvas viewport (no overflow leaking into layout)
+    <div
+      style={{
+        position: 'relative',
+        width: CANVAS_W,
+        height: CANVAS_H,
+        borderRadius: 6,
+        overflow: 'hidden',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
+        flexShrink: 0,
+      }}
+    >
+    {/* Inner div: slightly larger than the canvas so animating items that
+        start outside the visible area are rendered (not clipped) during
+        their travel, but the outer container keeps them from affecting layout */}
     <div
       ref={canvasRef}
       style={{
-        position: 'relative', width: CANVAS_W, height: CANVAS_H,
+        position: 'absolute',
+        top: -ANIM_BLEED, left: -ANIM_BLEED,
+        width: CANVAS_W + ANIM_BLEED * 2,
+        height: CANVAS_H + ANIM_BLEED * 2,
         ...boardStyle,
-        borderRadius: 6, overflow: playing ? 'visible' : 'hidden',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
-        flexShrink: 0,
+        // Offset the background so the grid aligns with the visible canvas
+        backgroundPosition: `${ANIM_BLEED}px ${ANIM_BLEED}px`,
+        // Pad content back so graphic coordinates still map correctly
+        paddingTop: ANIM_BLEED, paddingLeft: ANIM_BLEED,
+        boxSizing: 'border-box',
       }}
       onClick={handleCanvasClick}
     >
@@ -97,6 +124,7 @@ export default function EditorCanvas({ playing = false }) {
           </p>
         </div>
       )}
+    </div>
     </div>
   );
 }
