@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import SvgRenderer from '../shared/SvgRenderer';
+import { getEffectiveFontFamily } from '../../services/fontService';
 import AnimatedSvgRenderer from '../shared/AnimatedSvgRenderer';
 import AnimatedTextReveal from '../shared/AnimatedTextReveal';
 import AnimatedImageReveal from '../shared/AnimatedImageReveal';
@@ -326,14 +327,17 @@ export default function GraphicItem({ graphic, isSelected, playing, onTipMove, s
 }
 
 function StaticText({ graphic }) {
+  // Use the same font the animation engine renders so static ↔ animated match exactly
+  const effectiveFont = getEffectiveFontFamily(graphic.fontFamily);
   return (
     <div style={{
       width: '100%', height: '100%',
       display: 'flex', alignItems: 'center',
-      overflow: 'hidden', whiteSpace: 'nowrap',
-      fontFamily: graphic.fontFamily, fontWeight: graphic.fontWeight,
+      overflow: 'hidden', whiteSpace: 'pre-wrap',
+      fontFamily: effectiveFont, fontWeight: graphic.fontWeight,
       fontStyle: graphic.fontStyle, fontSize: graphic.fontSize,
-      color: '#1a1a1a',
+      lineHeight: 1.2,
+      color: graphic.color || '#1a1a1a',
     }}>{graphic.rawText}</div>
   );
 }

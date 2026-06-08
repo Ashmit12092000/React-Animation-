@@ -55,6 +55,7 @@ export function createDrawingModel(svgText, name = 'Graphic', pos = {}, paintFil
     height: pos.height ?? 120,
     delay: 0,
     duration: paintFill ? 3.0 : 1.5,
+    hand_speed: 1.0,
   };
 }
 
@@ -74,6 +75,7 @@ export function createImageModel({ src, name = 'Image' }, pos = {}) {
     height: pos.height ?? 150,
     delay: 0,
     duration: 1.2,
+    hand_speed: 1.0,
     // reveal effect: 'draw' | 'wipe-right' | 'wipe-down' | 'fade' | 'zoom'
     revealEffect: 'draw',
   };
@@ -84,7 +86,7 @@ export function createImageModel({ src, name = 'Image' }, pos = {}) {
  * @param {{ x, y }} pos
  */
 export function createTextModel(
-  { rawText = 'Text', fontFamily = 'Georgia', fontStyle = 'normal', fontWeight = 'normal', fontSize = 36 },
+  { rawText = 'Text', fontFamily = 'Georgia', fontStyle = 'normal', fontWeight = 'normal', fontSize = 36, color = '#1a1a1a' },
   pos = {}
 ) {
   return {
@@ -96,11 +98,15 @@ export function createTextModel(
     fontStyle,
     fontWeight,
     fontSize,
+    color,
     x: pos.x ?? 80,
     y: pos.y ?? 100,
     width: Math.max(120, fontSize * rawText.length * 0.65),
-    height: fontSize * 1.6,
+    // height = SVG natural height (RENDER * 1.15 = fontSize * 1.15) + 2px margin
+    // This ensures the animated SVG (at natural 1:1 scale) fits without clipping
+    height: Math.ceil(fontSize * 1.15) + 2,
     delay: 0,
     duration: 1,
+    hand_speed: 1.0,
   };
 }

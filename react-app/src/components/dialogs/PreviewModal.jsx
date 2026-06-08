@@ -7,6 +7,7 @@ import AnimatedImageReveal from '../shared/AnimatedImageReveal';
 import AnimatedFillReveal from '../shared/AnimatedFillReveal';
 import WhiteboardHand from '../shared/WhiteboardHand';
 import { getBoardStyle, getTransitionStyle } from '../../utils/animation';
+import { getEffectiveFontFamily } from '../../services/fontService';
 import { useMobile } from '../../hooks/useMobile';
 import { getEntryEffectStyle } from '../canvas/ContextMenu';
 
@@ -122,7 +123,10 @@ function buildSequentialTimeline(graphics, speed = 1) {
   let cursor = 0;
   return graphics.map(g => {
     const seqDelay    = cursor / speed;
-    const scaledDur   = g.duration / speed;
+    // hand_speed scales the animation duration independently of global speed
+    // hand_speed > 1 = faster drawing; hand_speed < 1 = slower drawing
+    const hs          = g.hand_speed ?? 1.0;
+    const scaledDur   = (g.duration / speed) / hs;
     cursor += g.duration;
     return { ...g, seqDelay, scaledDur };
   });
@@ -382,11 +386,17 @@ export default function PreviewModal() {
                 />
               ) : (
                 <div style={{
-                  width: '100%', height: '100%', display: 'flex', alignItems: 'center',
-                  overflow: 'hidden', whiteSpace: 'nowrap',
-                  fontFamily: g.fontFamily, fontWeight: g.fontWeight,
+                  width: '100%', height: '100%',
+                  display: 'flex', alignItems: 'center',
+                  // Use the same effective font as the animation engine so static matches animated
+                  fontFamily: getEffectiveFontFamily(g.fontFamily), fontWeight: g.fontWeight,
                   fontStyle: g.fontStyle, fontSize: g.fontSize,
-                  color: project?.boardType === 'whiteboard' ? '#1a1a1a' : '#f1f5f9',
+                  lineHeight: 1.2,
+                  color: (g.color && g.color !== '')
+                    ? g.color
+                    : (project?.boardType === 'blackboard' || project?.boardType === 'greenboard'
+                        ? '#f1f5f9' : '#1a1a1a'),
+                  overflow: 'hidden', whiteSpace: 'pre-wrap',
                 }}>
                   {g.rawText}
                 </div>

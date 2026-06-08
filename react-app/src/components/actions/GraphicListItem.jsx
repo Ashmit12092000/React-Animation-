@@ -87,19 +87,77 @@ export default function GraphicListItem({ graphic, isSelected, onDragStart, onDr
 
       {/* Expanded controls when selected */}
       {isSelected && (
-        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        // Stop ALL mouse/pointer events from bubbling to the draggable parent.
+        // Without this, dragging a range slider triggers the parent drag,
+        // which selects/deselects the item and interrupts the slider.
+        <div
+          style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}
+          onMouseDown={e => e.stopPropagation()}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+        >
           <Row label="Delay (s)">
             <NumInput value={graphic.delay} min={0} step={0.5} onChange={v => updateGraphicProps(graphic.id, { delay: v })} />
           </Row>
           <Row label="Duration (s)">
             <NumInput value={graphic.duration} min={0.1} step={0.5} onChange={v => updateGraphicProps(graphic.id, { duration: v })} />
           </Row>
+
+          {/* Hand Speed — stored and used in preview timeline, controlled here */}
+          <Row label="Hand Speed">
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                type="range"
+                min={0.25} max={3} step={0.25}
+                value={graphic.hand_speed ?? 1.0}
+                onChange={e => updateGraphicProps(graphic.id, { hand_speed: Number(e.target.value) })}
+                style={{ flex: 1, accentColor: '#10b981', cursor: 'pointer' }}
+              />
+              <span style={{
+                fontSize: 10, color: '#10b981', fontWeight: 700,
+                fontFamily: 'monospace', width: 30, textAlign: 'right', flexShrink: 0,
+              }}>
+                {(graphic.hand_speed ?? 1.0).toFixed(2)}×
+              </span>
+            </div>
+          </Row>
+
+          {graphic.type === 'text' && (
+            <Row label="Color">
+              <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={graphic.color || '#1a1a1a'}
+                  onChange={e => updateGraphicProps(graphic.id, { color: e.target.value })}
+                  style={{
+                    width: 28, height: 24, padding: 1, cursor: 'pointer',
+                    background: '#0f172a', border: '1px solid #334155',
+                    borderRadius: 4, boxSizing: 'border-box', flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace' }}>
+                  {graphic.color || '#1a1a1a'}
+                </span>
+                {['#1a1a1a','#ffffff','#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6'].map(c => (
+                  <div
+                    key={c}
+                    onClick={() => updateGraphicProps(graphic.id, { color: c })}
+                    style={{
+                      width: 14, height: 14, borderRadius: 2, flexShrink: 0,
+                      background: c, cursor: 'pointer',
+                      border: (graphic.color || '#1a1a1a') === c ? '2px solid #3b82f6' : '1px solid #475569',
+                    }}
+                  />
+                ))}
+              </div>
+            </Row>
+          )}
+
           {graphic.type === 'image' && (
             <Row label="Reveal">
               <select
                 value={graphic.revealEffect ?? 'draw'}
                 onChange={e => updateGraphicProps(graphic.id, { revealEffect: e.target.value })}
-                onClick={e => e.stopPropagation()}
                 style={{
                   width: '100%', background: '#0f172a', border: '1px solid #334155',
                   borderRadius: 4, padding: '4px 6px', color: '#e2e8f0',
@@ -151,7 +209,6 @@ function NumInput({ value, min, max, step = 1, onChange, placeholder }) {
       min={min} max={max} step={step}
       placeholder={placeholder}
       onChange={e => onChange(Number(e.target.value))}
-      onClick={e => e.stopPropagation()}
       style={{
         width: '100%', background: '#0f172a', border: '1px solid #334155',
         borderRadius: 4, padding: '4px 6px', color: '#e2e8f0',

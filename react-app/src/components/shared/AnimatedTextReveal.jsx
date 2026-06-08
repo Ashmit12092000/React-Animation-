@@ -4,15 +4,12 @@ import { textToStrokeData, warmFont } from '../../services/fontService';
 /**
  * AnimatedTextReveal — realistic handwriting animation.
  *
- * How it works:
- *  1. Each character glyph is split into its individual pen sub-paths
- *     (one sub-path per M command = one unbroken pen stroke).
- *  2. We animate each sub-path using strokeDashoffset — the stroke color
- *     matches the final fill color, so it looks like a pen drawing the letter.
- *  3. Behind the active stroke, completed glyphs are shown as solid fills —
- *     no hollow outlines, no skeletons, no ghosts.
- *  4. The hand/pencil tip follows getPointAtLength() on the active sub-path,
- *     so it moves along the actual pen stroke path.
+ * Sizing contract:
+ *   - The SVG uses preserveAspectRatio="xMinYMid meet" so glyphs are never
+ *     stretched or squished — they always render at the natural fontSize scale.
+ *   - The outer wrapper is width:100% height:100% overflow:hidden so the
+ *     parent container clips any overflow without distorting.
+ *   - This matches the static CSS text rendering exactly.
  */
 export default function AnimatedTextReveal({
   graphic, playing, duration, delay, onTipMove, playStartTime,
@@ -36,7 +33,7 @@ export default function AnimatedTextReveal({
       return textToStrokeData(
         graphic.rawText    || ' ',
         graphic.fontFamily || 'Open Sans',
-        graphic.fontSize   || 72,
+        graphic.fontSize   || 36,
       );
     }).then(data => {
       if (!cancelled && data) setStrokeData(data);
@@ -52,22 +49,16 @@ export default function AnimatedTextReveal({
 
     const { strokes, glyphs } = strokeData;
     const nStrokes = strokes.length;
-    const nGlyphs  = glyphs.length;
     if (nStrokes === 0) { onTipMove?.({ active: false }); return; }
 
-    // Query DOM elements
-    // stroke paths: id="sp{i}"  — animated with dashoffset
-    // glyph fills:  id="gf{i}"  — shown solid when glyph is done
     const strokeEls = strokes.map((_, i) => svgEl.querySelector(`#sp${i}`));
     const glyphEls  = glyphs.map((_, i)  => svgEl.querySelector(`#gf${i}`));
 
-    // Measure each stroke path length once
     const lengths = strokeEls.map(el => {
       if (!el) return 0;
       try { return el.getTotalLength() * 1.005; } catch { return 200; }
     });
 
-    // ── Static (not playing) — show everything filled ──────────────────────
     if (!playing) {
       strokeEls.forEach(el => { if (el) el.style.display = 'none'; });
       glyphEls.forEach(el  => { if (el) el.style.display = 'block'; });
@@ -75,8 +66,6 @@ export default function AnimatedTextReveal({
       return;
     }
 
-    // ── Init for animation ─────────────────────────────────────────────────
-    // All glyph fills hidden; strokes ready but invisible
     glyphEls.forEach(el => { if (el) el.style.display = 'none'; });
     strokeEls.forEach((el, i) => {
       if (!el) return;
@@ -87,8 +76,6 @@ export default function AnimatedTextReveal({
     });
 
     startRef.current = null;
-
-    // Which glyph index was last fully completed (all its strokes done)
     let lastRevealedGlyph = -1;
 
     const tick = (ts) => {
@@ -98,7 +85,6 @@ export default function AnimatedTextReveal({
       const dly      = delayRef.current;
       const perStroke = dur / nStrokes;
 
-      // ── Snap finished strokes ────────────────────────────────────────────
       strokes.forEach((stroke, i) => {
         if (elapsed >= dly + (i + 1) * perStroke) {
           const el = strokeEls[i];
@@ -109,21 +95,15 @@ export default function AnimatedTextReveal({
         }
       });
 
-      // ── Reveal completed glyph fills ─────────────────────────────────────
-      // When ALL strokes of a glyph are done, switch from stroke→fill
       glyphs.forEach((glyph, gi) => {
         const myStrokes = strokes
           .map((s, i) => ({ ...s, i }))
           .filter(s => s.glyphIndex === gi);
-
         if (myStrokes.length === 0) return;
-
         const lastStrokeIdx = myStrokes[myStrokes.length - 1].i;
         const allDone = elapsed >= dly + (lastStrokeIdx + 1) * perStroke;
-
         if (allDone && gi > lastRevealedGlyph) {
           lastRevealedGlyph = gi;
-          // Show filled glyph, hide its stroke paths
           const gfEl = glyphEls[gi];
           if (gfEl) gfEl.style.display = 'block';
           myStrokes.forEach(({ i }) => {
@@ -133,7 +113,6 @@ export default function AnimatedTextReveal({
         }
       });
 
-      // ── Find active stroke ────────────────────────────────────────────────
       const activeIdx = strokes.findIndex((_, i) => {
         const s = dly + i * perStroke;
         const e = dly + (i + 1) * perStroke;
@@ -157,7 +136,6 @@ export default function AnimatedTextReveal({
         el.style.strokeDashoffset = `${len * (1 - t)}`;
       }
 
-      // Hide future strokes
       strokes.forEach((_, i) => {
         if (i > activeIdx) {
           const fe = strokeEls[i];
@@ -165,18 +143,16 @@ export default function AnimatedTextReveal({
         }
       });
 
-      // ── Pencil tip follows the actual stroke path ─────────────────────────
+      // ── Pencil tip: SVG is at natural scale (1 vb unit = 1 css px) ─────────
       if (onTipMove && el && len > 0) {
         try {
-          const pt     = el.getPointAtLength(t * len);
-          const rect   = svgEl.getBoundingClientRect();
-          const vb     = svgEl.viewBox.baseVal;
-          const scaleX = rect.width  / vb.width;
-          const scaleY = rect.height / vb.height;
+          const pt   = el.getPointAtLength(t * len);
+          const rect = svgEl.getBoundingClientRect();
+          // SVG is rendered at natural size; pt.x/pt.y are already in CSS px
           onTipMove({
             active:  true,
-            screenX: rect.left + pt.x * scaleX,
-            screenY: rect.top  + pt.y * scaleY,
+            screenX: rect.left + pt.x,
+            screenY: rect.top  + pt.y,
           });
         } catch (_) { onTipMove?.({ active: false }); }
       }
@@ -193,56 +169,67 @@ export default function AnimatedTextReveal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strokeData, playing]);
 
-  const color =
-    graphic.boardType === 'blackboard' || graphic.boardType === 'greenboard'
-      ? '#f1f5f9' : (graphic.color || '#1a1a1a');
+  // Priority: explicit color > board-type default
+  const isBoardDark = graphic.boardType === 'blackboard' || graphic.boardType === 'greenboard';
+  const color = (graphic.color && graphic.color !== '')
+    ? graphic.color
+    : (isBoardDark ? '#f1f5f9' : '#1a1a1a');
 
-  // Stroke width: sized so it looks like the pen that would draw this letter.
-  // The font paths are rendered at RENDER_SIZE=120 units; the stroke width
-  // needs to be thick enough to cover the letter body visually.
-  const strokeW = Math.max(1.5, (strokeData?.renderSize || 120) * 0.055);
+  // strokeW: relative to RENDER (= fontSize). 0.055 gives natural pen thickness.
+  const strokeW = Math.max(1.2, (strokeData?.renderSize || graphic.fontSize || 36) * 0.055);
 
   if (!strokeData) {
     return <div style={{ width: '100%', height: '100%', opacity: 0 }} />;
   }
 
-  return (
-    <svg
-      ref={svgRef}
-      viewBox={strokeData.viewBox}
-      style={{ width: '100%', height: '100%', overflow: 'visible', display: 'block' }}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* ── Filled glyphs (shown once their strokes are done) ── */}
-      {strokeData.glyphs.map((g, i) => (
-        <path
-          key={`gf${i}`}
-          id={`gf${i}`}
-          d={g.d}
-          fill={color}
-          stroke="none"
-          style={{ display: playing ? 'none' : 'block' }}
-        />
-      ))}
+  // Render the SVG at its natural size (1 viewBox unit = 1px).
+  // Since RENDER = fontSize, the glyphs appear at the same visual size
+  // as CSS `fontSize` text, ensuring a perfect static ↔ animated match.
+  const svgW = strokeData.totalWidth;
+  const svgH = strokeData.totalHeight;
 
-      {/* ── Animated stroke sub-paths ── */}
-      {playing && strokeData.strokes.map((s, i) => (
-        <path
-          key={`sp${i}`}
-          id={`sp${i}`}
-          d={s.d}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeW}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{
-            opacity:          0,
-            strokeDasharray:  '0',
-            strokeDashoffset: '0',
-          }}
-        />
-      ))}
-    </svg>
+  return (
+    // Outer div clips any overflow; SVG is at natural scale (no stretching)
+    <div style={{ width: '100%', height: '100%', overflow: 'hidden', display: 'block' }}>
+      <svg
+        ref={svgRef}
+        viewBox={strokeData.viewBox}
+        width={svgW}
+        height={svgH}
+        style={{ display: 'block', flexShrink: 0 }}
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* ── Filled glyphs (shown once their strokes are done) ── */}
+        {strokeData.glyphs.map((g, i) => (
+          <path
+            key={`gf${i}`}
+            id={`gf${i}`}
+            d={g.d}
+            fill={color}
+            stroke="none"
+            style={{ display: playing ? 'none' : 'block' }}
+          />
+        ))}
+
+        {/* ── Animated stroke sub-paths ── */}
+        {playing && strokeData.strokes.map((s, i) => (
+          <path
+            key={`sp${i}`}
+            id={`sp${i}`}
+            d={s.d}
+            fill="none"
+            stroke={color}
+            strokeWidth={strokeW}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              opacity:          0,
+              strokeDasharray:  '0',
+              strokeDashoffset: '0',
+            }}
+          />
+        ))}
+      </svg>
+    </div>
   );
 }

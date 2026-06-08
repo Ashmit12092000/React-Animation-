@@ -86,7 +86,10 @@ function splitIntoSubpaths(commands) {
  */
 export async function textToStrokeData(text, fontFamily, fontSize = 72) {
   const font     = await loadFont(fontFamily);
-  const RENDER   = 120;
+  // Use the actual fontSize for rendering so that the SVG glyph paths are
+  // proportional to the fontSize. This ensures the animated text matches
+  // the static text size (which is rendered with CSS fontSize directly).
+  const RENDER   = Math.max(20, fontSize);
   const baseline = RENDER * 0.78;
   const scale    = RENDER / font.unitsPerEm;
   const chars    = font.stringToGlyphs(text || ' ');
@@ -144,4 +147,22 @@ export async function textToSvgPaths(text, fontFamily, fontSize = 72) {
     width:   data.totalWidth,
     height:  data.totalHeight,
   };
+}
+// ─── Resolved CSS font name for static rendering ──────────────────────────────
+// Maps the selected font to the CSS @font-face name that matches the TTF file
+// used by the animation engine.  Static text should use this to stay consistent.
+const FONT_CSS_NAME = {
+  'Pacifico':         'Pacifico',
+  'Caveat':           'Caveat',
+  'Dancing Script':   'Dancing Script',
+  'Open Sans':        'Open Sans',
+};
+const FALLBACK_CSS  = 'Open Sans';   // what all un-mapped fonts render as
+
+/**
+ * Returns the CSS font-family string that exactly matches what the animation
+ * engine renders.  Use this for static text so it visually matches animated.
+ */
+export function getEffectiveFontFamily(requested) {
+  return FONT_CSS_NAME[requested] ?? FALLBACK_CSS;
 }

@@ -16,12 +16,13 @@ export default function TextTab() {
   const [fontWeight, setFontWeight] = useState('normal');
   const [fontStyle, setFontStyle] = useState('normal');
   const [fontSize, setFontSize] = useState(36);
+  const [color, setColor] = useState('#1a1a1a');
 
   const canAdd = rawText.trim().length > 0;
 
   const handleAdd = () => {
     if (!canAdd) return;
-    addTextGraphic({ rawText: rawText.trim(), fontFamily, fontWeight, fontStyle, fontSize });
+    addTextGraphic({ rawText: rawText.trim(), fontFamily, fontWeight, fontStyle, fontSize, color });
     setRawText('');
   };
 
@@ -79,12 +80,55 @@ export default function TextTab() {
         </div>
       </Field>
 
+
+      {/* Text color */}
+      <Field label="Text Color">
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="color"
+            value={color}
+            onChange={e => setColor(e.target.value)}
+            style={{
+              width: 40, height: 32, padding: 2, cursor: 'pointer',
+              background: '#1e293b', border: '1px solid #334155',
+              borderRadius: 6, boxSizing: 'border-box',
+            }}
+          />
+          <input
+            type="text"
+            value={color}
+            onChange={e => {
+              const v = e.target.value;
+              if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setColor(v);
+            }}
+            style={{ ...INPUT, width: 90, fontFamily: 'monospace' }}
+            maxLength={7}
+          />
+          {/* Quick preset swatches */}
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {['#1a1a1a','#ffffff','#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6'].map(c => (
+              <div
+                key={c}
+                onClick={() => setColor(c)}
+                title={c}
+                style={{
+                  width: 18, height: 18, borderRadius: 3,
+                  background: c, cursor: 'pointer',
+                  border: color === c ? '2px solid #3b82f6' : '1px solid #475569',
+                  flexShrink: 0,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </Field>
+
       {/* Preview */}
       <div style={{
         background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6,
         padding: '12px 10px', minHeight: 60,
         fontFamily, fontWeight, fontStyle, fontSize: Math.min(fontSize, 48),
-        color: '#f1f5f9', overflow: 'hidden', wordBreak: 'break-word',
+        color: color, overflow: 'hidden', wordBreak: 'break-word',
         lineHeight: 1.3,
       }}>
         {rawText || <span style={{ color: '#334155' }}>Preview will appear here</span>}

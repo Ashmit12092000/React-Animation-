@@ -265,14 +265,14 @@ export const useStore = create((set, get) => ({
     });
   },
 
-  addTextGraphic({ rawText, fontFamily, fontStyle, fontWeight, fontSize }) {
+  addTextGraphic({ rawText, fontFamily, fontStyle, fontWeight, fontSize, color }) {
     set(state => {
       const hist = pushHistory(state);
       return produce({ ...state, ...hist }, draft => {
         const scene = draft.project.scenes.find(s => s.id === draft.selectedSceneId)
           ?? draft.project.scenes[0];
         if (!scene) return;
-        const g = createTextModel({ rawText, fontFamily, fontStyle, fontWeight, fontSize }, {
+        const g = createTextModel({ rawText, fontFamily, fontStyle, fontWeight, fontSize, color }, {
           x: 80 + Math.random() * 200,
           y: 100 + Math.random() * 80,
         });
